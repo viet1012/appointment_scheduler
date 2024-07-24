@@ -1,47 +1,86 @@
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
+import 'package:intl/intl.dart';
 
-import 'appointment_detail_screen.dart';
 import 'appointment_form.dart';
 import 'appointment_model.dart';
+import 'database_helper.dart';
 
 class AppointmentList extends StatefulWidget {
+  final String userId;
+
+  AppointmentList({required this.userId});
+
   @override
   _AppointmentListState createState() => _AppointmentListState();
 }
 
 class _AppointmentListState extends State<AppointmentList> {
-  final List<Appointment> _appointments = [];
-  DateTime _selectedDay = DateTime.now();
-  DateTime _focusedDay = DateTime.now();
-  CalendarFormat _calendarFormat = CalendarFormat.month;
+  List<Appointment> _appointments = [];
 
-  void _addAppointment(Appointment appointment) {
+  @override
+  void initState() {
+    super.initState();
+    _fetchAppointments();
+  }
+
+  void _fetchAppointments() async {
+    final dbHelper = DatabaseHelper();
+    final appointments = await dbHelper.getAppointments(userId: widget.userId);
     setState(() {
-      final existingAppointmentIndex =
-          _appointments.indexWhere((appt) => appt.id == appointment.id);
-      if (existingAppointmentIndex >= 0) {
-        _appointments[existingAppointmentIndex] = appointment;
-      } else {
-        _appointments.add(appointment);
-      }
+      _appointments = appointments;
     });
   }
 
-  void _editAppointment(Appointment updatedAppointment) {
-    setState(() {
-      final index =
-          _appointments.indexWhere((appt) => appt.id == updatedAppointment.id);
-      if (index >= 0) {
-        _appointments[index] = updatedAppointment;
-      }
-    });
+  void _addAppointment(Appointment appointment) async {
+    final dbHelper = DatabaseHelper();
+    await dbHelper.insertAppointment(appointment);
+    _fetchAppointments(); // Reload the appointments after adding
   }
 
-  void _deleteAppointment(String id) {
-    setState(() {
-      _appointments.removeWhere((appt) => appt.id == id);
-    });
+  void _editAppointment(Appointment updatedAppointment) async {
+    final dbHelper = DatabaseHelper();
+    await dbHelper.insertAppointment(updatedAppointment);
+    _fetchAppointments(); // Reload the appointments after editing
+  }
+
+  void _deleteAppointment(String id) async {
+    final dbHelper = DatabaseHelper();
+    await dbHelper.deleteAppointment(id);
+    _fetchAppointments(); // Reload the appointments after deleting
+  }
+
+  Future<bool?> _confirmDeleteAppointment(String id, String note) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Xác nhận xóa"),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Bạn có chắc chắn muốn xóa lịch hẹn "$note"?'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(false); // Return false to cancel deletion
+              },
+              child: Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(true); // Return true to confirm deletion
+              },
+              child: Text('Xóa'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showForm({Appointment? appointment}) {
@@ -49,95 +88,102 @@ class _AppointmentListState extends State<AppointmentList> {
       MaterialPageRoute(
         builder: (context) => AppointmentForm(
           appointment: appointment,
-          onSave: (appointment == null) ? _addAppointment : _editAppointment,
+          onSave: appointment == null ? _addAppointment : _editAppointment,
+          userId: widget.userId,
         ),
       ),
     );
   }
 
-  void _showDetail(Appointment appointment) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => AppointmentDetailScreen(appointment: appointment),
-      ),
-    );
-  }
-
-  Map<DateTime, List<Appointment>> _groupAppointmentsByDate() {
-    Map<DateTime, List<Appointment>> data = {};
-    for (var appointment in _appointments) {
-      DateTime date = DateTime(
-        appointment.date.year,
-        appointment.date.month,
-        appointment.date.day,
-      );
-      if (data[date] == null) data[date] = [];
-      data[date]!.add(appointment);
-    }
-    return data;
-  }
-
-  List<Appointment> _getAppointmentsForSelectedDay() {
-    return _groupAppointmentsByDate()[_selectedDay] ?? [];
-  }
-
   @override
   Widget build(BuildContext context) {
-    Map<DateTime, List<Appointment>> groupedAppointments =
-        _groupAppointmentsByDate();
-
     return Scaffold(
       appBar: AppBar(
-        title: Text('Danh sách lịch hẹn'),
-      ),
-      body: Column(
-        children: [
-          // TableCalendar(
-          //   focusedDay: _focusedDay,
-          //   firstDay: DateTime(2020),
-          //   lastDay: DateTime(2030),
-          //   selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-          //   calendarFormat: _calendarFormat,
-          //   eventLoader: (date) {
-          //     return groupedAppointments[date] ?? [];
-          //   },
-          //   onDaySelected: (selectedDay, focusedDay) {
-          //     setState(() {
-          //       _selectedDay = selectedDay;
-          //       _focusedDay = focusedDay;
-          //     });
-          //   },
-          //   onFormatChanged: (format) {
-          //     setState(() {
-          //       _calendarFormat = format;
-          //     });
-          //   },
-          //   onPageChanged: (focusedDay) {
-          //     _focusedDay = focusedDay;
-          //   },
-          // ),
-          const SizedBox(height: 8.0),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _getAppointmentsForSelectedDay().length,
-              itemBuilder: (context, index) {
-                final appointment = _getAppointmentsForSelectedDay()[index];
-                return ListTile(
-                  title: Text('Hẹn: ${appointment.note}'),
-                  subtitle: Text('Địa điểm: ${appointment.location}'),
-                  onTap: () => _showDetail(appointment),
-                  trailing: IconButton(
-                    icon: Icon(Icons.delete),
-                    onPressed: () => _deleteAppointment(appointment.id),
-                  ),
-                );
-              },
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/Vicon.webp',
+              height: 30,
+            ),
+            SizedBox(width: 10),
+            const Text(
+              'Danh sách lịch hẹn',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        centerTitle: false,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue, Colors.teal],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
-        ],
+        ),
+        elevation: 10,
+        shadowColor: Colors.black.withOpacity(0.5),
+      ),
+      body: ListView.builder(
+        itemCount: _appointments.length,
+        itemBuilder: (context, index) {
+          final appointment = _appointments[index];
+          final note = appointment.note ?? 'No note';
+          final DateFormat formatter = DateFormat('dd/MM/yyyy');
+          final formattedDate = formatter.format(appointment.date);
+
+          return Dismissible(
+            key: Key(appointment.id),
+            direction: DismissDirection.horizontal,
+            confirmDismiss: (direction) async {
+              final bool? confirm =
+                  await _confirmDeleteAppointment(appointment.id, note);
+              if (confirm == true) {
+                _deleteAppointment(appointment.id);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$note đã bị xóa')),
+                );
+                return true;
+              } else {
+                return false;
+              }
+            },
+            background: Container(
+              color: Colors.red,
+              alignment: Alignment.centerRight,
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: const Icon(
+                Icons.delete,
+                color: Colors.white,
+              ),
+            ),
+            child: Card(
+              elevation: 4,
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.teal,
+                  child: Text(
+                    (note.isNotEmpty) ? note[0] : 'N',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                title: Text('Hẹn: $note'),
+                subtitle: Text(
+                    'Địa điểm: ${appointment.location}\nNgày hẹn: $formattedDate'),
+                onTap: () => _showForm(appointment: appointment),
+              ),
+            ),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
         onPressed: () => _showForm(),
       ),
     );

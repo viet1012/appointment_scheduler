@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'appointment_model.dart';
 
 class AppointmentForm extends StatefulWidget {
   final Function(Appointment) onSave;
   final Appointment? appointment;
+  final String userId;
 
-  AppointmentForm({required this.onSave, this.appointment});
+  AppointmentForm({
+    required this.onSave,
+    this.appointment,
+    required this.userId,
+  });
 
   @override
   _AppointmentFormState createState() => _AppointmentFormState();
@@ -27,7 +33,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
   void initState() {
     super.initState();
     if (widget.appointment != null) {
-      _selectedDate = widget.appointment!.date;
+      _selectedDate = widget.appointment!.date as DateTime?;
       _startTime = TimeOfDay.fromDateTime(widget.appointment!.startTime);
       _endTime = TimeOfDay.fromDateTime(widget.appointment!.endTime);
       _location = widget.appointment!.location;
@@ -45,19 +51,10 @@ class _AppointmentFormState extends State<AppointmentForm> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-    if (picked != null && picked != _selectedDate) {
-      if (picked.isBefore(DateTime.now())) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể chọn thời gian đã qua'),
-          ),
-        );
-      } else {
-        setState(() {
-          _selectedDate = picked;
-        });
-      }
-    }
+    if (picked != null && picked != _selectedDate)
+      setState(() {
+        _selectedDate = picked;
+      });
   }
 
   Future<void> _selectTime({required bool isStartTime}) async {
@@ -66,29 +63,13 @@ class _AppointmentFormState extends State<AppointmentForm> {
       initialTime: TimeOfDay.now(),
     );
     if (picked != null) {
-      final now = DateTime.now();
-      final selectedDateTime = DateTime(
-        _selectedDate?.year ?? now.year,
-        _selectedDate?.month ?? now.month,
-        _selectedDate?.day ?? now.day,
-        picked.hour,
-        picked.minute,
-      );
-      if (selectedDateTime.isBefore(now)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể chọn thời gian đã qua'),
-          ),
-        );
-      } else {
-        setState(() {
-          if (isStartTime) {
-            _startTime = picked;
-          } else {
-            _endTime = picked;
-          }
-        });
-      }
+      setState(() {
+        if (isStartTime) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
     }
   }
 
@@ -117,7 +98,9 @@ class _AppointmentFormState extends State<AppointmentForm> {
         type: _type,
         color: _color,
         attachments: _attachments,
+        userId: widget.userId,
       );
+
       widget.onSave(newAppointment);
       Navigator.of(context).pop();
     }
@@ -127,9 +110,28 @@ class _AppointmentFormState extends State<AppointmentForm> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.appointment == null
-            ? 'Tạo mới lịch hẹn'
-            : 'Chỉnh sửa lịch hẹn'),
+        title: Text(
+          widget.appointment == null
+              ? 'Tạo mới lịch hẹn'
+              : 'Chỉnh sửa lịch hẹn',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: false,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue, Colors.teal],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        elevation: 10,
+        shadowColor: Colors.black.withOpacity(0.5),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -137,10 +139,11 @@ class _AppointmentFormState extends State<AppointmentForm> {
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 ListTile(
                   title: Text(
-                      'Chọn ngày: ${_selectedDate?.toString() ?? 'Chưa chọn'}'),
+                      'Chọn ngày: ${_selectedDate != null ? DateFormat('dd/MM/yyyy').format(_selectedDate!) : 'Chưa chọn'}'),
                   trailing: Icon(Icons.calendar_today),
                   onTap: _selectDate,
                 ),
@@ -156,30 +159,63 @@ class _AppointmentFormState extends State<AppointmentForm> {
                   trailing: Icon(Icons.access_time),
                   onTap: () => _selectTime(isStartTime: false),
                 ),
+                SizedBox(height: 20),
                 TextFormField(
-                  decoration: InputDecoration(labelText: 'Địa điểm'),
+                  decoration: InputDecoration(
+                    labelText: 'Địa điểm',
+                    border: OutlineInputBorder(),
+                  ),
                   initialValue: _location,
                   onSaved: (value) => _location = value!,
                 ),
+                SizedBox(height: 20),
                 TextFormField(
-                  decoration: InputDecoration(labelText: 'Ghi chú'),
+                  decoration: InputDecoration(
+                    labelText: 'Ghi chú',
+                    border: OutlineInputBorder(),
+                  ),
                   initialValue: _note,
                   onSaved: (value) => _note = value!,
                 ),
+                SizedBox(height: 20),
                 TextFormField(
-                  decoration: InputDecoration(labelText: 'Loại lịch hẹn'),
+                  decoration: InputDecoration(
+                    labelText: 'Loại lịch hẹn',
+                    border: OutlineInputBorder(),
+                  ),
                   initialValue: _type,
                   onSaved: (value) => _type = value!,
                 ),
+                SizedBox(height: 20),
                 TextFormField(
-                  decoration: InputDecoration(labelText: 'Màu sắc/biểu tượng'),
+                  decoration: InputDecoration(
+                    labelText: 'Màu sắc/biểu tượng',
+                    border: OutlineInputBorder(),
+                  ),
                   initialValue: _color,
                   onSaved: (value) => _color = value!,
                 ),
-// Đính kèm tệp tin, hình ảnh, âm thanh có thể làm sau
-                ElevatedButton(
-                  onPressed: _saveForm,
-                  child: Text('Lưu'),
+                SizedBox(height: 20),
+                // Đính kèm tệp tin, hình ảnh, âm thanh có thể làm sau
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _saveForm,
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.teal, // Background color
+                      foregroundColor: Colors.white, // Text color
+                      textStyle: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 8, // Shadow depth
+                    ),
+                    child: Text('Lưu'),
+                  ),
                 ),
               ],
             ),
