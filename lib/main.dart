@@ -1,37 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'appointment_list.dart';
 
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final userId = await getUserId();
-  runApp(MyApp(userId: userId));
-}
 
-Future<String> getUserId() async {
-  final prefs = await SharedPreferences.getInstance();
-  String? userId = prefs.getString('userId');
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  if (userId == null) {
-    userId = Uuid().v4(); // Tạo userId mới nếu chưa có
-    await prefs.setString('userId', userId);
-  }
+  final InitializationSettings initializationSettings =
+      const InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
 
-  return userId;
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final String userId;
-
-  MyApp({required this.userId});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: AppointmentList(userId: userId),
+      home: AppointmentList(userId: 'user_id_here'),
     );
   }
 }

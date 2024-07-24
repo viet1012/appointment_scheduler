@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 
 import 'appointment_form.dart';
 import 'appointment_model.dart';
 import 'database_helper.dart';
+import 'main.dart';
 
 class AppointmentList extends StatefulWidget {
   final String userId;
@@ -31,22 +33,55 @@ class _AppointmentListState extends State<AppointmentList> {
     });
   }
 
+  Future<void> _scheduleNotification(Appointment appointment) async {
+    final scheduledNotificationDateTime = DateTime(
+      appointment.date.year,
+      appointment.date.month,
+      appointment.date.day,
+      appointment.startTime.hour,
+      appointment.startTime.minute,
+    );
+
+    const androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'appointment_reminders_channel',
+      'Appointment Reminders',
+      channelDescription: 'Notifications for appointment reminders',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: false,
+    );
+
+    const platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    await flutterLocalNotificationsPlugin.schedule(
+      appointment.id.hashCode,
+      'Appointment Reminder',
+      'You have an appointment: ${appointment.note}',
+      scheduledNotificationDateTime,
+      platformChannelSpecifics,
+    );
+  }
+
   void _addAppointment(Appointment appointment) async {
     final dbHelper = DatabaseHelper();
     await dbHelper.insertAppointment(appointment);
-    _fetchAppointments(); // Reload the appointments after adding
+    _scheduleNotification(appointment);
+    _fetchAppointments();
   }
 
   void _editAppointment(Appointment updatedAppointment) async {
     final dbHelper = DatabaseHelper();
     await dbHelper.insertAppointment(updatedAppointment);
-    _fetchAppointments(); // Reload the appointments after editing
+    _scheduleNotification(updatedAppointment);
+    _fetchAppointments();
   }
 
   void _deleteAppointment(String id) async {
     final dbHelper = DatabaseHelper();
     await dbHelper.deleteAppointment(id);
-    _fetchAppointments(); // Reload the appointments after deleting
+    _fetchAppointments();
   }
 
   Future<bool?> _confirmDeleteAppointment(String id, String note) async {
@@ -54,26 +89,54 @@ class _AppointmentListState extends State<AppointmentList> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Xác nhận xóa"),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Text(
+            "Xác nhận xóa",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+          ),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                Text('Bạn có chắc chắn muốn xóa lịch hẹn "$note"?'),
+                Text(
+                  'Bạn có chắc chắn muốn xóa lịch hẹn "$note"?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
               ],
             ),
           ),
           actions: [
             TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.grey,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               onPressed: () {
-                Navigator.of(context)
-                    .pop(false); // Return false to cancel deletion
+                Navigator.of(context).pop(false);
               },
               child: Text('Hủy'),
             ),
             TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               onPressed: () {
-                Navigator.of(context)
-                    .pop(true); // Return true to confirm deletion
+                Navigator.of(context).pop(true);
               },
               child: Text('Xóa'),
             ),
@@ -110,10 +173,17 @@ class _AppointmentListState extends State<AppointmentList> {
               'Danh sách lịch hẹn',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 24,
+                fontSize: 22,
                 color: Colors.white,
               ),
             ),
+            // Spacer(),
+            // IconButton(
+            //   icon: Icon(Icons.account_circle),
+            //   onPressed: () {
+            //     // Hành động khi nhấn vào biểu tượng người dùng
+            //   },
+            // ),
           ],
         ),
         centerTitle: false,
@@ -163,6 +233,9 @@ class _AppointmentListState extends State<AppointmentList> {
               ),
             ),
             child: Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
               elevation: 4,
               margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               child: ListTile(
@@ -173,18 +246,40 @@ class _AppointmentListState extends State<AppointmentList> {
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
-                title: Text('Hẹn: $note'),
+                title: Text(
+                  'Hẹn: $note',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 subtitle: Text(
-                    'Địa điểm: ${appointment.location}\nNgày hẹn: $formattedDate'),
+                  'Địa điểm: ${appointment.location}\nNgày hẹn: $formattedDate',
+                  style: TextStyle(
+                    fontSize: 14,
+                  ),
+                ),
                 onTap: () => _showForm(appointment: appointment),
               ),
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showForm(),
+        backgroundColor: Colors.teal,
+        icon: const Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 30,
+        ),
+        label: const Text(
+          "Tạo mới",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 20,
+          ),
+        ),
       ),
     );
   }

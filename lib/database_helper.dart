@@ -61,7 +61,6 @@ class DatabaseHelper {
       where: 'userId = ?',
       whereArgs: [userId],
     );
-
     return List.generate(maps.length, (i) {
       return Appointment.fromMap(maps[i]);
     });

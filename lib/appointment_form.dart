@@ -116,7 +116,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
               : 'Chỉnh sửa lịch hẹn',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 24,
+            fontSize: 22,
             color: Colors.white,
           ),
         ),
