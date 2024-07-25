@@ -243,7 +243,7 @@ class _AppointmentListState extends State<AppointmentList> {
                 leading: CircleAvatar(
                   backgroundColor: Colors.teal,
                   child: Text(
-                    (note.isNotEmpty) ? note[0] : 'N',
+                    (note.isNotEmpty) ? note[0] : 'V',
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import 'appointment_form.dart';
 import 'appointment_list.dart';
@@ -30,6 +32,21 @@ Future<void> onSelectNotification(String? payload) async {
   }
 }
 
+String generateUserId() {
+  String userId = Uuid().v4();
+  return userId;
+}
+
+Future<String> getUserId() async {
+  final prefs = await SharedPreferences.getInstance();
+  String? userId = prefs.getString("userId");
+  if (userId == null) {
+    userId = generateUserId();
+    await prefs.setString("userId", userId);
+  }
+  return userId;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -44,17 +61,22 @@ void main() async {
       onDidReceiveNotificationResponse: (NotificationResponse response) {
     onSelectNotification(response.payload);
   });
-
-  runApp(MyApp());
+  String userId = await getUserId();
+  runApp(MyApp(
+    userId: userId,
+  ));
 }
 
 class MyApp extends StatelessWidget {
+  final String userId;
+
+  MyApp({required this.userId});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      home: AppointmentList(userId: 'user_id_here'),
+      home: AppointmentList(userId: userId),
     );
   }
 }
