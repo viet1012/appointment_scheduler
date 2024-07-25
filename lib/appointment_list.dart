@@ -61,6 +61,7 @@ class _AppointmentListState extends State<AppointmentList> {
       'You have an appointment: ${appointment.note}',
       scheduledNotificationDateTime,
       platformChannelSpecifics,
+      payload: appointment.id,
     );
   }
 

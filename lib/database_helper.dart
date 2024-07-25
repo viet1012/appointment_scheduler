@@ -66,6 +66,19 @@ class DatabaseHelper {
     });
   }
 
+  Future<Appointment?> getAppointmentById(String id) async {
+    final db = await database;
+    List<Map<String, dynamic>> results = await db.query(
+      'appointments',
+      where: 'id = ?',
+      whereArgs: [id],
+    ) as List<Map<String, dynamic>>; // Thêm chuyển đổi kiểu dữ liệu tại đây
+    if (results.isNotEmpty) {
+      return Appointment.fromMap(results.first);
+    }
+    return null;
+  }
+
   Future<void> deleteAppointment(String id) async {
     final db = await database;
     await db.delete(
